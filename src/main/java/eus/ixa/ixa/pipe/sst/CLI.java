@@ -14,7 +14,7 @@
    limitations under the License.
  */
 
-package eus.ixa.ixa.pipe.nerc;
+package eus.ixa.ixa.pipe.sst;
 
 import ixa.kaflib.KAFDocument;
 
@@ -230,7 +230,7 @@ public class CLI {
     // language parameter
     String lang = parsedArguments.getString("language");
     Properties serverproperties = setNameServerProperties(port, model, lang, lexer, dictTag, dictPath, clearFeatures, outputFormat);
-    new NameFinderServer(serverproperties);
+    new SuperSenseTaggerServer(serverproperties);
   }
   
   /**

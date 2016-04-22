@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Rodrigo Agerri
+ *  Copyright 2016 Rodrigo Agerri
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
    limitations under the License.
  */
 
-package eus.ixa.ixa.pipe.nerc;
+package eus.ixa.ixa.pipe.sst;
 
 import ixa.kaflib.Entity;
 import ixa.kaflib.KAFDocument;
@@ -34,8 +34,8 @@ import java.util.Properties;
 import com.google.common.collect.Lists;
 
 import eus.ixa.ixa.pipe.ml.StatisticalSequenceLabeler;
-import eus.ixa.ixa.pipe.ml.nerc.DictionariesNameFinder;
-import eus.ixa.ixa.pipe.ml.nerc.NumericNameFinder;
+import eus.ixa.ixa.pipe.ml.nerc.DictionariesNERTagger;
+import eus.ixa.ixa.pipe.ml.nerc.NumericNERTagger;
 import eus.ixa.ixa.pipe.ml.resources.Dictionaries;
 import eus.ixa.ixa.pipe.ml.sequence.Sequence;
 import eus.ixa.ixa.pipe.ml.sequence.SequenceFactory;
@@ -69,11 +69,11 @@ public class Annotate {
   /**
    * The dictionary name finder.
    */
-  private DictionariesNameFinder dictFinder;
+  private DictionariesNERTagger dictFinder;
   /**
    * The NameFinder Lexer for rule-based name finding.
    */
-  private NumericNameFinder numericLexerFinder;
+  private NumericNERTagger numericLexerFinder;
   /**
    * True if the name finder is statistical.
    */
@@ -118,8 +118,8 @@ public class Annotate {
 
   /**
    * Generates the right options for NERC tagging: using the
-   * {@link StatisticalNameFinder} or using the {@link DictionariesNameFinder}
-   * or a combination of those with the {@link NumericNameFinder}.
+   * {@link StatisticalNameFinder} or using the {@link DictionariesNERTagger}
+   * or a combination of those with the {@link NumericNERTagger}.
    * 
    * @param properties
    *          the parameters to choose the NameFinder are lexer, dictTag and
@@ -144,7 +144,7 @@ public class Annotate {
       if (!dictPath.equals(Flags.DEFAULT_DICT_PATH)) {
         if (dictionaries == null) {
           dictionaries = new Dictionaries(dictPath);
-          dictFinder = new DictionariesNameFinder(dictionaries, nameFactory);
+          dictFinder = new DictionariesNERTagger(dictionaries, nameFactory);
         }
         if (dictOption.equalsIgnoreCase("tag")) {
           dictTag = true;
@@ -227,7 +227,7 @@ public class Annotate {
         String sentenceText = StringUtils.getStringFromTokens(tokens);
         StringReader stringReader = new StringReader(sentenceText);
         BufferedReader sentenceReader = new BufferedReader(stringReader);
-        numericLexerFinder = new NumericNameFinder(sentenceReader, nameFactory);
+        numericLexerFinder = new NumericNERTagger(sentenceReader, nameFactory);
         Span[] numericSpans = numericLexerFinder.nercToSpans(tokens);
         Span.concatenateSpans(allSpans, numericSpans);
       }
@@ -306,7 +306,7 @@ public class Annotate {
         String sentenceText = StringUtils.getStringFromTokens(tokens);
         StringReader stringReader = new StringReader(sentenceText);
         BufferedReader sentenceReader = new BufferedReader(stringReader);
-        numericLexerFinder = new NumericNameFinder(sentenceReader, nameFactory);
+        numericLexerFinder = new NumericNERTagger(sentenceReader, nameFactory);
         Span[] numericSpans = numericLexerFinder.nercToSpans(tokens);
         Span.concatenateSpans(allSpans, numericSpans);
       }

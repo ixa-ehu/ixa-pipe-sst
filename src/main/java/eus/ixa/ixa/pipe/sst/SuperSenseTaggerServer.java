@@ -14,7 +14,7 @@
    limitations under the License.
  */
 
-package eus.ixa.ixa.pipe.nerc;
+package eus.ixa.ixa.pipe.sst;
 
 import ixa.kaflib.KAFDocument;
 
@@ -33,7 +33,7 @@ import org.jdom2.JDOMException;
 
 import com.google.common.io.Files;
 
-public class NameFinderServer {
+public class SuperSenseTaggerServer {
   
   /**
    * Get dynamically the version of ixa-pipe-nerc by looking at the MANIFEST
@@ -61,7 +61,7 @@ public class NameFinderServer {
    * @param properties
    *          the properties
    */
-  public NameFinderServer(Properties properties) {
+  public SuperSenseTaggerServer(Properties properties) {
 
     Integer port = Integer.parseInt(properties.getProperty("port"));
     model = properties.getProperty("model");
