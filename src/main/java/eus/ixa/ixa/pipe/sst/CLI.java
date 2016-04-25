@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Rodrigo Agerri
+ *  Copyright 2016 Rodrigo Agerri
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -44,23 +44,22 @@ import com.google.common.io.Files;
 import eus.ixa.ixa.pipe.ml.utils.Flags;
 
 /**
- * Main class of ixa-pipe-nerc, the ixa pipes (ixa2.si.ehu.es/ixa-pipes) sequence
- * labeler.
- * 
+ * Main class of ixa-pipe-sst, the IXA pipes SuperSense tagger.
+ * This module uses the ixa-pipe-ml API.
  * @author ragerri
- * @version 2015-02-26
+ * @version 2016-04-25
  * 
  */
 public class CLI {
 
   /**
-   * Get dynamically the version of ixa-pipe-nerc by looking at the MANIFEST
+   * Get dynamically the version of ixa-pipe-sst by looking at the MANIFEST
    * file.
    */
   private final String version = CLI.class.getPackage()
       .getImplementationVersion();
   /**
-   * Get the git commit of the ixa-pipe-nerc compiled by looking at the MANIFEST
+   * Get the git commit of the ixa-pipe-sst compiled by looking at the MANIFEST
    * file.
    */
   private final String commit = CLI.class.getPackage().getSpecificationVersion();
@@ -72,16 +71,16 @@ public class CLI {
    * Argument parser instance.
    */
   private ArgumentParser argParser = ArgumentParsers.newArgumentParser(
-      "ixa-pipe-nerc-" + version + "-exec.jar").description(
-      "ixa-pipe-nerc-" + version
-          + " is a multilingual sequence labeler module developed by IXA NLP Group.\n");
+      "ixa-pipe-sst-" + version + "-exec.jar").description(
+      "ixa-pipe-sst-" + version
+          + " is the IXA pipes multilingual SuperSense tagger.\n");
   /**
    * Sub parser instance.
    */
   private Subparsers subParsers = argParser.addSubparsers().help(
       "sub-command help");
   /**
-   * The parser that manages the NER tagging sub-command.
+   * The parser that manages the SST tagging sub-command.
    */
   private Subparser annotateParser;
   /**
@@ -98,7 +97,7 @@ public class CLI {
    * line parameters.
    */
   public CLI() {
-    annotateParser = subParsers.addParser("tag").help("NER Tagging CLI");
+    annotateParser = subParsers.addParser("tag").help("SST Tagging CLI");
     loadAnnotateParameters();
     serverParser = subParsers.addParser("server").help("Start TCP socket server");
     loadServerParameters();
@@ -107,7 +106,7 @@ public class CLI {
     }
 
   /**
-   * Main entry point of ixa-pipe-nerc.
+   * Main entry point of ixa-pipe-sst.
    * 
    * @param args
    *          the arguments passed through the CLI
@@ -145,19 +144,19 @@ public class CLI {
       }
     } catch (ArgumentParserException e) {
       argParser.handleError(e);
-      System.out.println("Run java -jar target/ixa-pipe-nerc-" + version
+      System.out.println("Run java -jar target/ixa-pipe-sst-" + version
           + "-exec.jar (tag|server|client) -help for details");
       System.exit(1);
     }
   }
 
   /**
-   * Main method to do Named Entity tagging.
+   * Main method to do SuperSense tagging.
    * 
    * @param inputStream
    *          the input stream containing the content to tag
    * @param outputStream
-   *          the output stream providing the named entities
+   *          the output stream providing the super senses
    * @throws IOException
    *           exception if problems in input or output streams
    * @throws JDOMException if xml formatting problems
@@ -174,9 +173,6 @@ public class CLI {
     // load parameters into a properties
     String model = parsedArguments.getString("model");
     String outputFormat = parsedArguments.getString("outputFormat");
-    String lexer = parsedArguments.getString("lexer");
-    String dictTag = parsedArguments.getString("dictTag");
-    String dictPath = parsedArguments.getString("dictPath");
     String clearFeatures = parsedArguments.getString("clearFeatures");
     // language parameter
     String lang = null;
@@ -185,35 +181,29 @@ public class CLI {
       if (!kaf.getLang().equalsIgnoreCase(lang)) {
         System.err
             .println("Language parameter in NAF and CLI do not match!!");
-        System.exit(1);
       }
     } else {
       lang = kaf.getLang();
     }
-    Properties properties = setAnnotateProperties(model, lang, lexer, dictTag, dictPath, clearFeatures);
+    Properties properties = setAnnotateProperties(model, lang, clearFeatures);
     KAFDocument.LinguisticProcessor newLp = kaf.addLinguisticProcessor(
-        "entities", "ixa-pipe-nerc-" + Files.getNameWithoutExtension(model), version + "-" + commit);
+        "entities", "ixa-pipe-sst-" + Files.getNameWithoutExtension(model), version + "-" + commit);
     newLp.setBeginTimestamp();
     Annotate annotator = new Annotate(properties);
-    annotator.annotateNEs(kaf);
-    newLp.setEndTimestamp();
+   
     String kafToString = null;
-    if (outputFormat.equalsIgnoreCase("conll03")) {
-      kafToString = annotator.annotateNEsToCoNLL2003(kaf);
-    } else if (outputFormat.equalsIgnoreCase("conll02")) {
-      kafToString = annotator.annotateNEsToCoNLL2002(kaf);
-    } else if (outputFormat.equalsIgnoreCase("opennlp")) {
-      kafToString = annotator.annotateNEsToOpenNLP(kaf);
+    if (outputFormat.equalsIgnoreCase("conll02")) {
+      kafToString = annotator.annotateToCoNLL02(kaf);
     } else {
-      kafToString = annotator.annotateNEsToKAF(kaf);
+      annotator.annotateToKAF(kaf);
+      newLp.setEndTimestamp();
+      kafToString = kaf.toString();
     }
     bwriter.write(kafToString);
     bwriter.close();
     breader.close();
   }
-  
-  
-  
+
   /**
    * Set up the TCP socket for annotation.
    */
@@ -222,14 +212,11 @@ public class CLI {
     // load parameters into a properties
     String port = parsedArguments.getString("port");
     String model = parsedArguments.getString("model");
-    String lexer = parsedArguments.getString("lexer");
-    String dictTag = parsedArguments.getString("dictTag");
-    String dictPath = parsedArguments.getString("dictPath");
     String clearFeatures = parsedArguments.getString("clearFeatures");
     String outputFormat = parsedArguments.getString("outputFormat");
     // language parameter
     String lang = parsedArguments.getString("language");
-    Properties serverproperties = setNameServerProperties(port, model, lang, lexer, dictTag, dictPath, clearFeatures, outputFormat);
+    Properties serverproperties = setServerProperties(port, model, lang, clearFeatures, outputFormat);
     new SuperSenseTaggerServer(serverproperties);
   }
   
@@ -288,7 +275,7 @@ public class CLI {
   }
 
   /**
-   * Create the available parameters for NER tagging.
+   * Create the available parameters for SST tagging.
    */
   private void loadAnnotateParameters() {
     
@@ -303,38 +290,17 @@ public class CLI {
         		" are present, choose 'docstart'.\n");
     annotateParser.addArgument("-l","--language")
         .required(false)
-        .choices("de", "en", "es", "eu", "it", "nl")
+        .choices("ca", "en", "es")
         .help("Choose language; it defaults to the language value in incoming NAF file.\n");
     annotateParser.addArgument("-o","--outputFormat")
         .required(false)
-        .choices("conll03", "conll02", "naf", "opennlp")
+        .choices("conll02", "naf")
         .setDefault(Flags.DEFAULT_OUTPUT_FORMAT)
         .help("Choose output format; it defaults to NAF.\n");
-    annotateParser.addArgument("--lexer")
-        .choices("numeric")
-        .setDefault(Flags.DEFAULT_LEXER)
-        .required(false)
-        .help("Use lexer rules for NERC tagging; it defaults to false.\n");
-    annotateParser.addArgument("--dictTag")
-        .required(false)
-        .choices("tag", "post")
-        .setDefault(Flags.DEFAULT_DICT_OPTION)
-        .help("Choose to directly tag entities by dictionary look-up; if the 'tag' option is chosen, " +
-        		"only tags entities found in the dictionary; if 'post' option is chosen, it will " +
-        		"post-process the results of the statistical model.\n");
-    annotateParser.addArgument("--dictPath")
-        .required(false)
-        .setDefault(Flags.DEFAULT_DICT_PATH)
-        .help("Provide the path to the dictionaries for direct dictionary tagging; it ONLY WORKS if --dictTag " +
-        		"option is activated.\n");
   }
-  
- 
-
-  
 
   /**
-   * Create the available parameters for NER tagging.
+   * Create the available parameters for SuperSense tagging in a TCP server.
    */
   private void loadServerParameters() {
     
@@ -352,32 +318,17 @@ public class CLI {
                 " are present, choose 'docstart'.\n");
     serverParser.addArgument("-l","--language")
         .required(true)
-        .choices("de", "en", "es", "eu", "it", "nl")
+        .choices("ca", "en", "es")
         .help("Choose language.\n");
     serverParser.addArgument("-o","--outputFormat")
         .required(false)
-        .choices("conll03", "conll02", "naf", "opennlp")
-        .setDefault(Flags.DEFAULT_OUTPUT_FORMAT)
-        .help("Choose output format; it defaults to NAF.\n");
-    serverParser.addArgument("--lexer")
-        .choices("numeric")
-        .setDefault(Flags.DEFAULT_LEXER)
-        .required(false)
-        .help("Use lexer rules for NERC tagging; it defaults to false.\n");
-    serverParser.addArgument("--dictTag")
-        .required(false)
-        .choices("tag", "post")
-        .setDefault(Flags.DEFAULT_DICT_OPTION)
-        .help("Choose to directly tag entities by dictionary look-up; if the 'tag' option is chosen, " +
-                "only tags entities found in the dictionary; if 'post' option is chosen, it will " +
-                "post-process the results of the statistical model.\n");
-    serverParser.addArgument("--dictPath")
-        .required(false)
-        .setDefault(Flags.DEFAULT_DICT_PATH)
-        .help("Provide the path to the dictionaries for direct dictionary tagging; it ONLY WORKS if --dictTag " +
-                "option is activated.\n");
+        .choices("conll02", "naf")
+        .setDefault(Flags.DEFAULT_OUTPUT_FORMAT);
   }
   
+  /**
+   * Load the client parameters from the CLI.
+   */
   private void loadClientParameters() {
     
     clientParser.addArgument("-p", "--port")
@@ -390,33 +341,34 @@ public class CLI {
   }
 
   /**
-   * Set a Properties object with the CLI parameters for NER annotation.
+   * Set a Properties object with the CLI parameters for SST annotation.
    * @param model the model parameter
    * @param language language parameter
-   * @param lexer rule based parameter
-   * @param dictTag directly tag from a dictionary
-   * @param dictPath directory to the dictionaries
+   * @param clearFeatures yes or no
    * @return the properties object
    */
-  private Properties setAnnotateProperties(String model, String language, String lexer, String dictTag, String dictPath, String clearFeatures) {
+  private Properties setAnnotateProperties(String model, String language, String clearFeatures) {
     Properties annotateProperties = new Properties();
     annotateProperties.setProperty("model", model);
     annotateProperties.setProperty("language", language);
-    annotateProperties.setProperty("ruleBasedOption", lexer);
-    annotateProperties.setProperty("dictTag", dictTag);
-    annotateProperties.setProperty("dictPath", dictPath);
     annotateProperties.setProperty("clearFeatures", clearFeatures);
     return annotateProperties;
   }
-  
-  private Properties setNameServerProperties(String port, String model, String language, String lexer, String dictTag, String dictPath, String clearFeatures, String outputFormat) {
+
+  /**
+   * Set a Properties object with the CLI parameters for the TCP server.
+   * @param port the port number
+   * @param model the model
+   * @param language the language
+   * @param clearFeatures yes or no
+   * @param outputFormat naf or conll02
+   * @return the properties object
+   */
+  private Properties setServerProperties(String port, String model, String language, String clearFeatures, String outputFormat) {
     Properties serverProperties = new Properties();
     serverProperties.setProperty("port", port);
     serverProperties.setProperty("model", model);
     serverProperties.setProperty("language", language);
-    serverProperties.setProperty("ruleBasedOption", lexer);
-    serverProperties.setProperty("dictTag", dictTag);
-    serverProperties.setProperty("dictPath", dictPath);
     serverProperties.setProperty("clearFeatures", clearFeatures);
     serverProperties.setProperty("outputFormat", outputFormat);
     return serverProperties;

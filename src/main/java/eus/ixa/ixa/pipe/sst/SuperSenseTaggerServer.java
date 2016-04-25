@@ -1,5 +1,5 @@
 /*
- *  Copyright 2015 Rodrigo Agerri
+ *  Copyright 2016 Rodrigo Agerri
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -33,15 +33,20 @@ import org.jdom2.JDOMException;
 
 import com.google.common.io.Files;
 
+/**
+ * TCP server class for SuperSense tagging.
+ * @author ragerri
+ * @version 2016-04-25
+ */
 public class SuperSenseTaggerServer {
   
   /**
-   * Get dynamically the version of ixa-pipe-nerc by looking at the MANIFEST
+   * Get dynamically the version of ixa-pipe-sst by looking at the MANIFEST
    * file.
    */
   private final String version = CLI.class.getPackage().getImplementationVersion();
   /**
-   * Get the git commit of the ixa-pipe-nerc compiled by looking at the MANIFEST
+   * Get the git commit of the ixa-pipe-sst compiled by looking at the MANIFEST
    * file.
    */
   private final String commit = CLI.class.getPackage().getSpecificationVersion();
@@ -50,13 +55,12 @@ public class SuperSenseTaggerServer {
    */
   private String model = null;
   /**
-   * The annotation output format, one of NAF (default), CoNLL 2002, CoNLL 2003
-   * and OpenNLP.
+   * The annotation output format, one of NAF (default) and CoNLL 2002.
    */
   private String outputFormat = null;
   
   /**
-   * Construct a NameFinder server.
+   * Construct a SuperSense Tagger server.
    * 
    * @param properties
    *          the properties
@@ -155,7 +159,7 @@ public class SuperSenseTaggerServer {
   }
   
   /**
-   * Named Entity annotator.
+   * Super Sense annotator.
    * @param annotator the annotator
    * @param stringFromClient the string to be annotated
    * @return the annotation result
@@ -168,21 +172,18 @@ public class SuperSenseTaggerServer {
     KAFDocument kaf = KAFDocument.createFromStream(clientReader);
     KAFDocument.LinguisticProcessor newLp = kaf.addLinguisticProcessor(
           "entities",
-          "ixa-pipe-nerc-" + Files.getNameWithoutExtension(model), version
+          "ixa-pipe-sst-" + Files.getNameWithoutExtension(model), version
               + "-" + commit);
     newLp.setBeginTimestamp();
-    annotator.annotateNEs(kaf);
-    newLp.setEndTimestamp();
     // get outputFormat
     String kafToString = null;
-    if (outputFormat.equalsIgnoreCase("conll03")) {
-      kafToString = annotator.annotateNEsToCoNLL2003(kaf);
-    } else if (outputFormat.equalsIgnoreCase("conll02")) {
-      kafToString = annotator.annotateNEsToCoNLL2002(kaf);
-    } else if (outputFormat.equalsIgnoreCase("opennlp")) {
-      kafToString = annotator.annotateNEsToOpenNLP(kaf);
+    if (outputFormat.equalsIgnoreCase("conll02")) {
+      annotator.annotateToKAF(kaf);
+      kafToString = annotator.annotateToCoNLL02(kaf);
     } else {
-      kafToString = annotator.annotateNEsToKAF(kaf);
+      annotator.annotateToKAF(kaf);
+      newLp.setEndTimestamp();
+      kafToString = kaf.toString();
     }
     return kafToString;
   }
