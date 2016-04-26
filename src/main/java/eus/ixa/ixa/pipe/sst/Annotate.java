@@ -16,8 +16,9 @@
 
 package eus.ixa.ixa.pipe.sst;
 
-import ixa.kaflib.Entity;
+import ixa.kaflib.ExternalRef;
 import ixa.kaflib.KAFDocument;
+import ixa.kaflib.Mark;
 import ixa.kaflib.Term;
 import ixa.kaflib.WF;
 
@@ -26,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+
+import com.google.common.io.Files;
 
 import eus.ixa.ixa.pipe.ml.StatisticalSequenceLabeler;
 import eus.ixa.ixa.pipe.ml.sequence.Sequence;
@@ -51,9 +54,11 @@ public class Annotate {
    * Clear features after every sentence or when a -DOCSTART- mark appears.
    */
   private String clearFeatures;
+  
+  private String model;
 
   public Annotate(final Properties properties) throws IOException {
-
+    this.model = properties.getProperty("model");
     this.clearFeatures = properties.getProperty("clearFeatures");
     seqFactory = new SequenceFactory();
     sstTagger = new StatisticalSequenceLabeler(properties, seqFactory);
@@ -90,11 +95,17 @@ public class Annotate {
         Integer endIndex = name.getSpan().getEnd();
         List<Term> nameTerms = kaf.getTermsFromWFs(Arrays.asList(Arrays
             .copyOfRange(tokenIds, startIndex, endIndex)));
-        ixa.kaflib.Span<Term> neSpan = KAFDocument.newTermSpan(nameTerms);
-        List<ixa.kaflib.Span<Term>> references = new ArrayList<ixa.kaflib.Span<Term>>();
-        references.add(neSpan);
-        Entity neEntity = kaf.newEntity(references);
-        neEntity.setType(name.getType());
+        List<WF> targets = new ArrayList<>();
+        for (Term term : nameTerms) {
+          List<WF> wfs = term.getWFs();
+          for (WF wf : wfs) {
+            targets.add(wf);
+          }
+        }
+        Mark markable = kaf.newMark(KAFDocument.newWFSpan(targets), "Ancora");
+        markable.setLemma(name.getString());
+        ExternalRef externalRef = kaf.createExternalRef("MRC-3.0-SST", name.getType());
+        markable.addExternalRef(externalRef);
       }
       if (clearFeatures.equalsIgnoreCase("yes")) {
         sstTagger.clearAdaptiveData();
