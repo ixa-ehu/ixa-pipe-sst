@@ -16,23 +16,20 @@
 
 package eus.ixa.ixa.pipe.sst;
 
-import ixa.kaflib.ExternalRef;
-import ixa.kaflib.KAFDocument;
-import ixa.kaflib.Mark;
-import ixa.kaflib.Term;
-import ixa.kaflib.WF;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
-import com.google.common.io.Files;
-
 import eus.ixa.ixa.pipe.ml.StatisticalSequenceLabeler;
-import eus.ixa.ixa.pipe.ml.sequence.Sequence;
-import eus.ixa.ixa.pipe.ml.sequence.SequenceFactory;
+import eus.ixa.ixa.pipe.ml.sequence.SequenceLabel;
+import eus.ixa.ixa.pipe.ml.sequence.SequenceLabelFactory;
+import ixa.kaflib.ExternalRef;
+import ixa.kaflib.KAFDocument;
+import ixa.kaflib.Mark;
+import ixa.kaflib.Term;
+import ixa.kaflib.WF;
 
 /**
  * Annotation class for SuperSenses in ixa-pipe-sst. This class is useful to see
@@ -45,22 +42,19 @@ public class Annotate {
   /**
    * The sequence factory.
    */
-  private SequenceFactory seqFactory;
+  private SequenceLabelFactory seqFactory;
   /**
-   * The SST to do the annotation.
+   * The SST tagger to do the annotation.
    */
   private StatisticalSequenceLabeler sstTagger;
   /**
    * Clear features after every sentence or when a -DOCSTART- mark appears.
    */
   private String clearFeatures;
-  
-  private String model;
 
   public Annotate(final Properties properties) throws IOException {
-    this.model = properties.getProperty("model");
     this.clearFeatures = properties.getProperty("clearFeatures");
-    seqFactory = new SequenceFactory();
+    seqFactory = new SequenceLabelFactory();
     sstTagger = new StatisticalSequenceLabeler(properties, seqFactory);
   }
 
@@ -89,8 +83,8 @@ public class Annotate {
           && tokens[0].startsWith("-DOCSTART-")) {
         sstTagger.clearAdaptiveData();
       }
-      List<Sequence> seqSpans = sstTagger.getSequences(tokens);
-      for (Sequence name : seqSpans) {
+      List<SequenceLabel> seqSpans = sstTagger.getSequences(tokens);
+      for (SequenceLabel name : seqSpans) {
         Integer startIndex = name.getSpan().getStart();
         Integer endIndex = name.getSpan().getEnd();
         List<Term> nameTerms = kaf.getTermsFromWFs(Arrays.asList(Arrays
